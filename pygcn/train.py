@@ -50,6 +50,7 @@ if args.cuda:
 adj, features, labels, idx_train, idx_val, idx_test = load_data()
 
 # Model and optimizer
+# 实例化一个GCN时，输入GCN.__init__的参数。调用这个GCN时，再输入forward要求的参数。
 model = GCN(nfeat=features.shape[1],
             nhid=args.hidden,
             nclass=labels.max().item() + 1,
