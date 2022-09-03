@@ -1,3 +1,9 @@
+"""
+
+train.py：训练流程
+
+"""
+
 from __future__ import division
 from __future__ import print_function
 
@@ -13,6 +19,7 @@ from pygcn.utils import load_data, accuracy
 from pygcn.models import GCN
 
 # Training settings
+# 参数输入
 parser = argparse.ArgumentParser()
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='Disables CUDA training.')
@@ -33,6 +40,7 @@ parser.add_argument('--dropout', type=float, default=0.5,
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
+# 随机种子
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 if args.cuda:
@@ -49,6 +57,7 @@ model = GCN(nfeat=features.shape[1],
 optimizer = optim.Adam(model.parameters(),
                        lr=args.lr, weight_decay=args.weight_decay)
 
+# 转移设备
 if args.cuda:
     model.cuda()
     features = features.cuda()
@@ -60,6 +69,7 @@ if args.cuda:
 
 
 def train(epoch):
+    # 训练集
     t = time.time()
     model.train()
     optimizer.zero_grad()
@@ -69,6 +79,7 @@ def train(epoch):
     loss_train.backward()
     optimizer.step()
 
+    # 验证集，一起放到了train里面
     if not args.fastmode:
         # Evaluate validation set performance separately,
         # deactivates dropout during validation run.
@@ -86,6 +97,7 @@ def train(epoch):
 
 
 def test():
+    # 测试集，为啥没有用torch.no_grad()？
     model.eval()
     output = model(features, adj)
     loss_test = F.nll_loss(output[idx_test], labels[idx_test])
