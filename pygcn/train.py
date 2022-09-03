@@ -101,7 +101,7 @@ def test():
     # 测试集，为啥没有用torch.no_grad()？
     model.eval()
     output = model(features, adj)
-    loss_test = F.nll_loss(output[idx_test], labels[idx_test])
+    loss_test = F.nll_loss(output[idx_test], labels[idx_test])  # nll_loss不需要去做手动转换，直接输入output的向量和按index索引后的labels就好了
     acc_test = accuracy(output[idx_test], labels[idx_test])
     print("Test set results:",
           "loss= {:.4f}".format(loss_test.item()),

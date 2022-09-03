@@ -76,7 +76,7 @@ def normalize(mx):
 
 
 def accuracy(output, labels):
-    preds = output.max(1)[1].type_as(labels)
+    preds = output.max(1)[1].type_as(labels)  # Tensor.max()[1]返回索引，Tensor.max()[0]返回数。索引也可用argmax返回。
     correct = preds.eq(labels).double()
     correct = correct.sum()
     return correct / len(labels)
