@@ -17,9 +17,9 @@ class GCN(nn.Module):
         self.dropout_rate = dropout_rate
 
     # 这里加载好的数据就必须是tensor了
-    def forward(self, adj, feature):
-        x = F.relu(self.gc1(adj, feature))  # 原代码将relu只放在第一次图卷积中
+    def forward(self, adj, feature, symmetry_normalize):
+        x = F.relu(self.gc1(adj, feature, symmetry_normalize))  # 原代码将relu只放在第一次图卷积中
         x = F.dropout(x, self.dropout_rate, self.training)
-        x = self.gc2(adj, x)
+        x = self.gc2(adj, x, symmetry_normalize)
         x = F.log_softmax(x, dim=1)
         return x

@@ -2,7 +2,7 @@
 
 train.py：训练流程。现在的问题是跑得太慢，以及准确率并不高。但至少已经跑得通了！
 接下来的目标，一是提高运行速度，二是和原有的代码实现对比提高准确率。
-现在想到的办法是，如果没有标准化adj矩阵呢？毕竟求逆还是需要一些运算量。
+现在想到的办法是，如果没有标准化adj矩阵呢？毕竟求逆还是需要一些运算量。事实证明，标准化adj矩阵确实慢一些，有没有更快的标准化方法。
 
 """
 
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 # 加载数据，将特征矩阵中的各数据转换为tensor，将邻接表转换为邻接矩阵后转为tensor，转移数据
-def load_data(root, feature_name, adj_name):
+def load_data(root, feature_name, adj_name, train_size):
     print("Loading dataset...")
     # 特征矩阵
     feature = np.genfromtxt(root / feature_name, dtype=str)  # 读取数据
@@ -38,8 +38,8 @@ def load_data(root, feature_name, adj_name):
         dtype=int
     ).A  # coo_matrix转为np.array才能被输入Tensor
     # 用index划分数据集，这是除了用DataLoader之外的另一种数据集划分方法，私以为其实更简单，也不用自己去实现什么魔术方法
-    train_idx = range(int(len(nodes) * 0.8))
-    test_idx = range(int(len(nodes) * 0.8), len(nodes))
+    train_idx = range(int(len(nodes) * train_size))
+    test_idx = range(int(len(nodes) * train_size), len(nodes))
     # 转为tensor并转移到cuda上
     all_features = torch.Tensor(all_features).cuda()
     adj_mat = torch.Tensor(adj_mat).cuda()
@@ -49,12 +49,12 @@ def load_data(root, feature_name, adj_name):
 
 
 # 训练。无论是训练还是测试都需要将整个模型跑完，然后再将训练集和测试集对应的索引拿出来进行效果的计算。
-def train(model, optimizer, epochs, adj, feature, label, train_idx):
+def train(model, optimizer, epochs, adj, feature, symmetry_normalize, label, train_idx):
     print("Training data:")
     model.train()
     for epoch in range(epochs):
         optimizer.zero_grad()
-        pred_train = model(adj, feature)[train_idx]
+        pred_train = model(adj, feature, symmetry_normalize)[train_idx]
         label_train = label[train_idx]
         loss = F.nll_loss(pred_train, label_train)  # nll_loss不需要去做手动独热转换，直接输入output的向量和按index索引后的labels就好了
         acc = torch.sum((pred_train.argmax(dim=1).eq(label_train).int())) / feature.shape[0]
@@ -65,10 +65,10 @@ def train(model, optimizer, epochs, adj, feature, label, train_idx):
               "acc: {:.4f}".format(acc.item()))
 
 
-def test(model, adj, feature, label, test_idx):
+def test(model, adj, feature, symmetry_normalize, label, test_idx):
     model.eval()
     with torch.no_grad():
-        pred_test = model(adj, feature)[test_idx]
+        pred_test = model(adj, feature, symmetry_normalize)[test_idx]
         label_test = label[test_idx]
         loss = F.nll_loss(pred_test, label_test)
         # argmax：取最大值下标；eq：逐元素判断相等；int：类型转换。
@@ -85,10 +85,12 @@ def main():
     random_seed = 1
     learning_rate = 0.01
     weight_decay = 5e-4
-    epochs = 20
+    epochs = 200
+    train_size = 0.8
     root = Path('../data/cora')
     feature_name = 'cora.content'
     adj_name = 'cora.cites'
+    symmetry_normalize = False
 
     # 初始化随机数
     torch.manual_seed(random_seed)
@@ -96,7 +98,7 @@ def main():
 
     # 加载数据
     all_features, n_features, classes_to_label, n_classes, adj_mat, train_idx, test_idx = \
-        load_data(root, feature_name, adj_name)
+        load_data(root, feature_name, adj_name, train_size)
 
     # 初始化模型
     model = GCN(n_features, n_hidden, n_classes, dropout_rate)
@@ -106,10 +108,10 @@ def main():
     model.cuda()
 
     # 训练
-    train(model, optimizer, epochs, adj_mat, all_features, classes_to_label, train_idx)
+    train(model, optimizer, epochs, adj_mat, all_features, symmetry_normalize, classes_to_label, train_idx)
 
     # 测试
-    test(model, adj_mat, all_features, classes_to_label, test_idx)
+    test(model, adj_mat, all_features, symmetry_normalize, classes_to_label, test_idx)
 
 
 if __name__ == '__main__':
